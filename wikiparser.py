@@ -1,10 +1,10 @@
 import requests
-from bs4 import BeautifulSoup
 import urllib.request
 import re
 from queue import Queue
 from time import time
 from threading import Thread
+from bs4 import BeautifulSoup
 
 '''Testing...
     Taiwan -> Basketball 1 degree
@@ -13,26 +13,13 @@ from threading import Thread
     Chain of 5: British Columbia → Longhorn beetle → Lamiinae → Apomecynini → Sybra → Sybra fuscotriangularis
     Digital_Signature_Algorithm -> Federal Information Processing Standard -> United States federal government -> national government
 '''
-starturl = 'https://en.wikipedia.org/wiki/Apomecynini'
-# endurl = 'https://en.wikipedia.org/wiki/Taiwan'
-endurl = "https://en.wikipedia.org/wiki/Sybra"
-
 
 '''
 based on: 
 https://github.com/connerlane/degrees-of-wikipedia/
 https://github.com/jwngr/sdow
 
-
-1. PLAN
-2. Parse links from starturl and whatlinkshere from endurl
-3. Add Page objects, url, title, depth, searched, neightbour or parent?
-4. Relate function to do bfs
-
-final: set time, and user input option. 
-
 '''
-
 
 class Page:
     def __init__(self, title, parent, depth=1):
@@ -97,15 +84,13 @@ def check_links(links, pagevisited, queue, page, linkers, endpath):
             queue.put(Page(title, page, page.depth + 1))
             if title in linkers:
                 secondtitle = (linkers[linkers.index(title)])
-                print(secondtitle)
-                queue.put(Page(secondtitle, title, page.depth + 1))
+                page = Page(secondtitle, page, page.depth + 1)
                 print("######## Path found #########")
                 return page
     return None
 
-def get_connection(page, connections):
-    connections.append((page, urllib.request.urlopen(
-        "https://en.wikipedia.org/wiki/" + page.title)))
+def connect_page(page, connections):
+    connections.append((page, urllib.request.urlopen("https://en.wikipedia.org/wiki/" + page.title)))
 
 
 def bfs(starturl, endurl, linkers):
@@ -129,9 +114,10 @@ def bfs(starturl, endurl, linkers):
             while web_links:
                 connections = []
                 threads = []
+                ''' Implemented threading that we can parse 100 pages at the same time'''
                 for i in range(100):
                     if web_links:
-                        thread = Thread(target=get_connection, args=(web_links.pop(), connections))
+                        thread = Thread(target=connect_page, args=(web_links.pop(), connections))
                         threads.append(thread)
                         thread.start()
                 for i in range(len(threads)):
@@ -149,12 +135,17 @@ def bfs(starturl, endurl, linkers):
 
 if __name__ == "__main__":
     print("Finding the shortest path between two wikipedia pages.")
+
+    start = input("Give starting page: ")
+    end = input("Give page where you want to go: ")
+
     start_time = time()
-    starturl = 'https://en.wikipedia.org/wiki/Asperger syndrome'
-    # endurl = 'https://en.wikipedia.org/wiki/Taiwan'
-    endurl = "https://en.wikipedia.org/wiki/Monty Hall problem"
+    starturl = "https://en.wikipedia.org/wiki/" + start
+    endurl = "https://en.wikipedia.org/wiki/" + end
+
     '''Linkers is a list that has pages that links to endurl'''
     linkers = whatLinkshere(endurl)
+
     result = bfs(starturl, endurl, linkers)
     path = []
     if result:
@@ -165,6 +156,6 @@ if __name__ == "__main__":
             result = result.parent
         path.append(result.title)
         path.reverse()
-        print(" -> ".join(path))
+        print(" -> ".join(path) + " -> " + end)
     else:
         print("Path was not found")
